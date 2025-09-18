@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/ration_item.dart';
-import '../services/storage_service.dart';
+import '../services/api_service.dart';
 
 class EditItemDialog extends StatefulWidget {
   final RationItem item;
@@ -17,7 +17,7 @@ class _EditItemDialogState extends State<EditItemDialog> {
   late final TextEditingController _nameCtrl;
   late final TextEditingController _imageCtrl;
   bool _saving = false;
-  final StorageService _storage = StorageService();
+  final ApiService _api = const ApiService();
 
   @override
   void initState() {
@@ -36,16 +36,12 @@ class _EditItemDialogState extends State<EditItemDialog> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
-    final updated = widget.item.copyWith(
+    await _api.updateProduct(
+      type: widget.type,
+      id: widget.item.id,
       name: _nameCtrl.text.trim(),
       imageUrl: _imageCtrl.text.trim(),
-      type: widget.type,
     );
-    if (widget.type == ItemType.vegetable) {
-      await _storage.updateVegetable(updated);
-    } else {
-      await _storage.updateRation(updated);
-    }
     if (mounted) Navigator.of(context).pop(true);
   }
 

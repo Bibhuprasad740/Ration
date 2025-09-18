@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/ration_item.dart';
-import '../services/storage_service.dart';
+import '../services/api_service.dart';
 
 class FinishedItemsScreen extends StatefulWidget {
   const FinishedItemsScreen({super.key});
@@ -11,7 +11,7 @@ class FinishedItemsScreen extends StatefulWidget {
 }
 
 class _FinishedItemsScreenState extends State<FinishedItemsScreen> {
-  final StorageService _storage = StorageService();
+  final ApiService _api = const ApiService();
   List<RationItem> _items = [];
   bool _loading = true;
 
@@ -22,7 +22,7 @@ class _FinishedItemsScreenState extends State<FinishedItemsScreen> {
   }
 
   Future<void> _load() async {
-    final list = await _storage.getFinished();
+    final list = await _api.fetchFinished();
     if (!mounted) return;
     setState(() {
       _items = list;
@@ -32,11 +32,11 @@ class _FinishedItemsScreenState extends State<FinishedItemsScreen> {
 
   Future<void> _refresh() => _load();
 
-  Future<void> _delete(String id) async {
-    await _storage.deleteById(StorageService.keyFinished, id);
+  Future<void> _delete(RationItem item) async {
+    await _api.removeFromFinished(type: item.type, id: item.id);
     if (!mounted) return;
     setState(() {
-      _items.removeWhere((e) => e.id == id);
+      _items.removeWhere((e) => e.id == item.id);
     });
   }
 
@@ -98,7 +98,7 @@ class _FinishedItemsScreenState extends State<FinishedItemsScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: const Icon(Icons.delete, color: Colors.white),
                       ),
-                      onDismissed: (_) => _delete(item.id),
+                      onDismissed: (_) => _delete(item),
                       child: Card(
                         child: ListTile(
                           leading: ClipRRect(
@@ -127,7 +127,7 @@ class _FinishedItemsScreenState extends State<FinishedItemsScreen> {
                               ),
                               IconButton(
                                 icon: const Icon(Icons.delete_outline),
-                                onPressed: () => _delete(item.id),
+                                onPressed: () => _delete(item),
                               ),
                             ],
                           ),
@@ -163,9 +163,8 @@ class _EditFinishedDialogState extends State<_EditFinishedDialog> {
   late final TextEditingController _imageCtrl = TextEditingController(
     text: widget.item.imageUrl,
   );
-  late ItemType _type = widget.item.type;
   bool _saving = false;
-  final StorageService _storage = StorageService();
+  final ApiService _api = const ApiService();
 
   @override
   void dispose() {
@@ -177,12 +176,12 @@ class _EditFinishedDialogState extends State<_EditFinishedDialog> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
-    final updated = widget.item.copyWith(
+    final updated = await _api.updateProduct(
+      type: widget.item.type,
+      id: widget.item.id,
       name: _nameCtrl.text.trim(),
       imageUrl: _imageCtrl.text.trim(),
-      type: _type,
     );
-    await _storage.updateFinished(updated);
     if (mounted) Navigator.of(context).pop(updated);
   }
 
@@ -196,23 +195,6 @@ class _EditFinishedDialogState extends State<_EditFinishedDialog> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              DropdownButtonFormField<ItemType>(
-                value: _type,
-                decoration: const InputDecoration(labelText: 'Type'),
-                items: const [
-                  DropdownMenuItem(
-                    value: ItemType.vegetable,
-                    child: Text('Vegetable'),
-                  ),
-                  DropdownMenuItem(
-                    value: ItemType.ration,
-                    child: Text('Ration'),
-                  ),
-                ],
-                onChanged: (v) =>
-                    setState(() => _type = v ?? ItemType.vegetable),
-              ),
-              const SizedBox(height: 12),
               TextFormField(
                 controller: _nameCtrl,
                 decoration: const InputDecoration(labelText: 'Name'),
@@ -259,7 +241,7 @@ class _AddFinishedDialog extends StatefulWidget {
 }
 
 class _AddFinishedDialogState extends State<_AddFinishedDialog> {
-  final StorageService _storage = StorageService();
+  final ApiService _api = const ApiService();
   ItemType _type = ItemType.vegetable;
   List<RationItem> _options = [];
   String? _selectedId;
@@ -284,9 +266,7 @@ class _AddFinishedDialogState extends State<_AddFinishedDialog> {
       _loading = true;
       _selectedId = null;
     });
-    final list = _type == ItemType.vegetable
-        ? await _storage.getVegetables()
-        : await _storage.getRations();
+    final list = await _api.fetchProducts(_type);
     if (!mounted) return;
     setState(() {
       _options = list;
@@ -302,15 +282,8 @@ class _AddFinishedDialogState extends State<_AddFinishedDialog> {
 
   Future<void> _save() async {
     if (_selectedId == null) return;
-    final selected = _options.firstWhere((e) => e.id == _selectedId);
-    final item = RationItem(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      name: selected.name,
-      imageUrl: selected.imageUrl,
-      type: _type,
-    );
-    await _storage.addFinished(item);
-    if (mounted) Navigator.of(context).pop(item);
+    final updated = await _api.addToFinished(type: _type, id: _selectedId!);
+    if (mounted) Navigator.of(context).pop(updated);
   }
 
   @override

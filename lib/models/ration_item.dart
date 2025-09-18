@@ -59,11 +59,12 @@ class RationItem {
   }
 
   factory RationItem.fromMap(Map<String, dynamic> map) {
+    final dynamic typeField = map.containsKey('type') ? map['type'] : map['productCollection'];
     return RationItem(
       id: map['id'] as String,
       name: map['name'] as String,
       imageUrl: map['imageUrl'] as String,
-      type: itemTypeFromString(map['type'] as String),
+      type: itemTypeFromString((typeField ?? 'ration') as String),
     );
   }
 

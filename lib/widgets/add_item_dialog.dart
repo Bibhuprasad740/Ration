@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/ration_item.dart';
-import '../services/storage_service.dart';
+import '../services/api_service.dart';
 
 class AddItemDialog extends StatefulWidget {
   final ItemType type; // Which list to add to
@@ -16,7 +16,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
   final _nameCtrl = TextEditingController();
   final _imageCtrl = TextEditingController();
   bool _saving = false;
-  final StorageService _storage = StorageService();
+  final ApiService _api = const ApiService();
 
   @override
   void dispose() {
@@ -28,17 +28,11 @@ class _AddItemDialogState extends State<AddItemDialog> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
-    final item = RationItem(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+    await _api.createProduct(
+      type: widget.type,
       name: _nameCtrl.text.trim(),
       imageUrl: _imageCtrl.text.trim(),
-      type: widget.type,
     );
-    if (widget.type == ItemType.vegetable) {
-      await _storage.addVegetable(item);
-    } else {
-      await _storage.addRation(item);
-    }
     if (mounted) {
       Navigator.of(context).pop(true);
     }
